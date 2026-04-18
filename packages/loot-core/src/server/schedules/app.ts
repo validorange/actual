@@ -481,12 +481,14 @@ function onApplySync(oldValues, newValues) {
 // This is the service that move schedules forward automatically and
 // posts transactions
 
-async function postTransactionForSchedule({
+export async function postTransactionForSchedule({
   id,
   today,
+  date,
 }: {
   id: string;
   today?: boolean;
+  date?: string;
 }) {
   const { data } = await aqlQuery(q('schedules').filter({ id }).select('*'));
   const schedule = data[0];
@@ -494,17 +496,29 @@ async function postTransactionForSchedule({
     return;
   }
 
+  const transactionDate = today ? currentDay() : (date ?? schedule.next_date);
+
   const transaction = {
     payee: schedule._payee,
     account: schedule._account,
     amount: getScheduledAmount(schedule._amount),
-    date: today ? currentDay() : schedule.next_date,
+    date: transactionDate,
     schedule: schedule.id,
     cleared: false,
   };
 
   if (transaction.account) {
     await addTransactions(transaction.account, [transaction]);
+  }
+
+  // If a specific future date was provided that differs from the stored
+  // next_date, advance the schedule past the posted date so it won't
+  // appear as an unpaid occurrence on the next service run.
+  if (!today && date && date !== schedule.next_date) {
+    await setNextDate({
+      id,
+      start: () => d.addDays(parseDate(date), 1),
+    });
   }
 }
 

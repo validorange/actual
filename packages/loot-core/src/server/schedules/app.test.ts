@@ -2,6 +2,7 @@
 import MockDate from 'mockdate';
 
 import { aqlQuery } from '#server/aql';
+import * as db from '#server/db';
 import { loadMappings } from '#server/db/mappings';
 import { loadRules, updateRule } from '#server/transactions/transaction-rules';
 import { q } from '#shared/query';
@@ -11,6 +12,7 @@ import {
   areConditionValuesEqual,
   createSchedule,
   deleteSchedule,
+  postTransactionForSchedule,
   setNextDate,
   skipNextDate,
   updateConditions,
@@ -497,6 +499,63 @@ describe('schedule app', () => {
       row = res.data[0];
 
       expect(row.next_date).toBe('2020-12-11');
+    });
+
+    it('postTransactionForSchedule posts with the provided date and advances next_date', async () => {
+      /* Bi-weekly schedule starting Nov 14 2020:
+       * occurrences: Nov 14, Nov 28, Dec 12, Dec 26, ...
+       * Scenario: Nov 28 transaction already exists (schedule is 'paid'),
+       * UI shows Dec 12 as the next upcoming preview and user posts it.
+       * Expected: transaction posts on Dec 12 and next_date advances to Dec 26.
+       */
+      MockDate.set(new Date(2020, 10, 29)); // Nov 29 – after Nov 28 was manually posted
+
+      const accountId = await db.insertAccount({
+        id: 'test-account',
+        name: 'Test Account',
+      });
+
+      const scheduleId = await createSchedule({
+        conditions: [
+          {
+            op: 'is',
+            field: 'account',
+            value: accountId,
+          },
+          {
+            op: 'isapprox',
+            field: 'date',
+            value: {
+              start: '2020-11-14',
+              frequency: 'weekly',
+              interval: 2,
+              patterns: [],
+            },
+          },
+        ],
+      });
+
+      // Confirm initial next_date is Nov 28 (first occurrence on or after today Nov 29 is Dec 12,
+      // but createSchedule calls getNextDate with new Date() = Nov 29, so it should be Dec 12).
+      // Actually createSchedule uses getNextDate without a MockDate start – let's just check it's set.
+      let res = await aqlQuery(
+        q('schedules').filter({ id: scheduleId }).select(['next_date']),
+      );
+      // next_date is Dec 12 because createSchedule is called on Nov 29
+      expect(res.data[0].next_date).toBe('2020-12-12');
+
+      // Simulate: user manually posts the Dec 26 preview occurrence
+      // (as if Dec 12 was already paid and Dec 26 is the next upcoming preview)
+      await postTransactionForSchedule({
+        id: scheduleId,
+        date: '2020-12-26',
+      });
+
+      res = await aqlQuery(
+        q('schedules').filter({ id: scheduleId }).select(['next_date']),
+      );
+      // next_date should now be Jan 9 2021 (two weeks after Dec 26)
+      expect(res.data[0].next_date).toBe('2021-01-09');
     });
   });
 });

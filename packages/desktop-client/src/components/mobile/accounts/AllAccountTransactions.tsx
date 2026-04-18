@@ -76,6 +76,7 @@ function TransactionListWithPreviews() {
                   await send('schedule/post-transaction', {
                     id: parts[1],
                     today,
+                    date: today ? undefined : parts[2],
                   });
                   dispatch(
                     collapseModals({

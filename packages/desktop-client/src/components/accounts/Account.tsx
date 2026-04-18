@@ -1493,8 +1493,12 @@ class AccountInternal extends PureComponent<
 
     switch (name) {
       case 'post-transaction':
-        for (const id of scheduleIds) {
-          await send('schedule/post-transaction', { id });
+        for (const id of ids) {
+          const parts = id.split('/');
+          await send('schedule/post-transaction', {
+            id: parts[1],
+            date: parts[2],
+          });
         }
         void this.refetchTransactions();
         break;
