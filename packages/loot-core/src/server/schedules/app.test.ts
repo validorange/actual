@@ -535,14 +535,13 @@ describe('schedule app', () => {
         ],
       });
 
-      // Confirm initial next_date is Nov 28 (first occurrence on or after today Nov 29 is Dec 12,
-      // but createSchedule calls getNextDate with new Date() = Nov 29, so it should be Dec 12).
-      // Actually createSchedule uses getNextDate without a MockDate start – let's just check it's set.
+      // In test mode, monthUtils.currentDay() is hardcoded to '2017-01-01' (MockDate has no
+      // effect on it). So getNextDate picks the first occurrence of the bi-weekly schedule
+      // on or after 2017-01-01, which is the schedule start date: Nov 14 2020.
       let res = await aqlQuery(
         q('schedules').filter({ id: scheduleId }).select(['next_date']),
       );
-      // next_date is Dec 12 because createSchedule is called on Nov 29
-      expect(res.data[0].next_date).toBe('2020-12-12');
+      expect(res.data[0].next_date).toBe('2020-11-14');
 
       // Simulate: user manually posts the Dec 26 preview occurrence
       // (as if Dec 12 was already paid and Dec 26 is the next upcoming preview)

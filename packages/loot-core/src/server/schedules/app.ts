@@ -492,7 +492,7 @@ export async function postTransactionForSchedule({
 }) {
   const { data } = await aqlQuery(q('schedules').filter({ id }).select('*'));
   const schedule = data[0];
-  if (schedule == null || schedule._account == null) {
+  if (!schedule) {
     return;
   }
 
