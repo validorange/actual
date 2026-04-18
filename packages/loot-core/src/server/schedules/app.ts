@@ -510,10 +510,10 @@ export async function postTransactionForSchedule({
   if (transaction.account) {
     await addTransactions(transaction.account, [transaction]);
 
-    // If a specific future date was provided that differs from the stored
-    // next_date, advance the schedule past the posted date so it won't
+    // If a specific future date was provided that is strictly later than the
+    // stored next_date, advance the schedule past the posted date so it won't
     // appear as an unpaid occurrence on the next service run.
-    if (!today && date && date !== schedule.next_date) {
+    if (!today && date && schedule.next_date && date > schedule.next_date) {
       await setNextDate({
         id,
         start: () => d.addDays(parseDate(date), 1),
