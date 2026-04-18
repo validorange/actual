@@ -535,6 +535,15 @@ describe('schedule app', () => {
         ],
       });
 
+      // Seed schedules_json_paths so the AQL view can resolve _account.
+      // In production this is done by the trackJSONPaths service; in tests
+      // that service is not started so we insert the paths manually.
+      // Conditions are ordered [account (idx 0), date (idx 1)].
+      db.runQuery(
+        'INSERT OR REPLACE INTO schedules_json_paths (schedule_id, payee, account, amount, date) VALUES (?, ?, ?, ?, ?)',
+        [scheduleId, null, '$[0]', null, '$[1]'],
+      );
+
       // In test mode, monthUtils.currentDay() is hardcoded to '2017-01-01' (MockDate has no
       // effect on it). So getNextDate picks the first occurrence of the bi-weekly schedule
       // on or after 2017-01-01, which is the schedule start date: Nov 14 2020.

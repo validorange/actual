@@ -1489,16 +1489,13 @@ class AccountInternal extends PureComponent<
     name: 'skip' | 'post-transaction' | 'post-transaction-today' | 'complete',
     ids: TransactionEntity['id'][],
   ) => {
-    const scheduleIds = ids.map(id => id.split('/')[1]);
+    const idParts = ids.map(id => id.split('/'));
+    const scheduleIds = idParts.map(parts => parts[1]);
 
     switch (name) {
       case 'post-transaction':
-        for (const id of ids) {
-          const parts = id.split('/');
-          await send('schedule/post-transaction', {
-            id: parts[1],
-            date: parts[2],
-          });
+        for (const [, scheduleId, date] of idParts) {
+          await send('schedule/post-transaction', { id: scheduleId, date });
         }
         void this.refetchTransactions();
         break;
